@@ -1,0 +1,11 @@
+{
+  "dockerfile_lines": [],
+  "graphs": {
+    "agent": "apps/studio/main.py:test_chat"
+  },
+  "env": "apps/fidrox_brain/.env",
+  "python_version": "3.11",
+  "dependencies": [
+    "."
+  ]
+}

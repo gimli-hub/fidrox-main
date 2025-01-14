@@ -1,0 +1,58 @@
+services:
+  fidrox_backend:
+    build:
+      context: apps/fidrox_backend
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - '3000:3000'
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      - UPDATE_EMBEDDINGS_ON_BOOTSTRAP=1
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - DATABASE_URL=postgresql://user:pass@db:5432/app?schema=api_schema
+    env_file:
+      - apps/fidrox_backend/.env
+  fidrox_brain:
+    build:
+      context: .
+      dockerfile: apps/fidrox_brain/Dockerfile
+    env_file:
+      - apps/fidrox_brain/.env
+    environment:
+      - POSTGRES_HOST=db
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - POSTGRES_DB_URL=postgresql://user:pass@db:5432/app
+      - API_URL=http://fidrox_backend:3000
+    command: python -u -m apps.fidrox_brain.main
+  fidrox_crones:
+    build:
+      context: .
+      dockerfile: apps/fidrox_crones/Dockerfile
+    env_file:
+      - apps/fidrox_crones/.env
+    command: python -u -m apps.fidrox_crones.main
+  redis:
+    image: redis:latest
+    ports:
+      - 6379:6379
+  db:
+    image: postgres:16
+    restart: always
+    ports:
+      - 5432:5432
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: app
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d app"]
+      interval: 10s
+      timeout: 5s
+      retries: 5

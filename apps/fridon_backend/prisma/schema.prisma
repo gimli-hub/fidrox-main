@@ -1,0 +1,133 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model ChatMessage {
+  id String @id @db.Uuid
+
+  content        String
+  messageType    MessageType
+  structuredData String?
+  personality    String?
+  plugins        String[]
+
+  Chat   Chat   @relation(fields: [chatId], references: [id])
+  chatId String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index(chatId)
+}
+
+enum MessageType {
+  Query
+  Response
+  TransactionResponse
+  Notification
+}
+
+model Rectangle {
+  id         String   @id @default(uuid())
+  symbol     String
+  startDate  DateTime
+  endDate    DateTime
+  startPrice Float
+  endPrice   Float
+  chat       Chat?
+  interval   String
+}
+
+enum ChatType {
+  Regular
+  SuperChart
+}
+
+model Chat {
+  id          String        @id
+  walletId    String
+  chatType    ChatType
+  messages    ChatMessage[]
+  rectangle   Rectangle?    @relation(fields: [rectangleId], references: [id])
+  rectangleId String?       @unique
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index(walletId)
+}
+
+model ChatNotifications {
+  id Int @id @default(autoincrement())
+
+  walletId String @unique
+  chatId   String @unique @db.Uuid
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model WalletMedia {
+  walletId String
+  mediaId  String
+
+  Media Media @relation(fields: [mediaId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([walletId, mediaId])
+  @@index(mediaId)
+  @@index(walletId)
+}
+
+model Media {
+  id String @id
+
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  WalletMedia WalletMedia[]
+}
+
+model WalletScoreHistory {
+  id        Int      @id @default(autoincrement())
+  walletId  String
+  chatId    String
+  score     Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Leaderboard {
+  walletId         String   @id
+  score            Float
+  pluginsUsed      Float
+  myPluginsUsed    Float
+  transactionsMade Float
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([walletId, score])
+  @@index([score])
+}
+
+model WalletPlugin {
+  walletId  String
+  pluginId  String
+  expiresAt DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([walletId, pluginId])
+}

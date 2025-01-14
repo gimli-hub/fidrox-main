@@ -1,0 +1,74 @@
+version: "3.8"
+services:
+  fidrox_backend:
+    image: ghcr.io/fidroxai/fidrox-ai_fidrox_backend:main
+    logging:
+      driver: "awslogs"
+      options:
+        awslogs-region: "eu-central-1"
+        awslogs-group: "/aws/fidroxai/fidrox_backend"
+        tag: "{{.ID}}"
+    restart: always
+    ports:
+      - "80:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - DATABASE_URL=postgresql://user:pass@db:5432/app?schema=api_schema
+      - UPDATE_EMBEDDINGS_ON_BOOTSTRAP=1
+      - ENABLE_UPDATE_EMBEDDINGS_CRON=1
+      - NO_COLOR=1
+    env_file:
+      - ./apps/fidrox_backend/.env
+
+  fidrox_brain:
+    image: ghcr.io/fidroxai/fidrox-ai_fidrox_brain:main
+    restart: always
+    logging:
+      driver: "awslogs"
+      options:
+        awslogs-region: "eu-central-1"
+        awslogs-group: "/aws/fidroxai/fidrox_brain"
+        tag: "{{.ID}}"
+    env_file:
+      - ./apps/fidrox_brain/.env
+    command: python -u -m apps.fidrox_brain.main
+
+
+  fidrox_crones:
+    image: ghcr.io/fidroxai/fidrox-ai_fidrox_crones:main
+    restart: always
+    logging:
+      driver: "awslogs"
+      options:
+        awslogs-region: "eu-central-1"
+        awslogs-group: "/aws/fidroxai/fidrox_crones"
+        tag: "{{.ID}}"
+    env_file:
+      - ./apps/fidrox_crones/.env
+    command: python -u -m apps.fidrox_crones.main
+
+  db:
+    image: postgres:16
+    restart: always
+    ports:
+      - 5432:5432
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: app
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d app"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - 6379:6379
